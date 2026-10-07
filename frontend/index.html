@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Insightboard – Analytics & BI Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f6f5;--card:#fff;--tx:#12302e;--mu:#5d7573;--bd:#d9e3e1;--ac:#0f766e;--ok:#15803d;--bad:#b45309;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1a19;--card:#152624;--tx:#e3efed;--mu:#8fa9a6;--bd:#27403d;--ac:#2dd4bf;--ok:#4ade80;--bad:#fbbf24}}
+:root[data-theme="dark"]{--bg:#0e1a19;--card:#152624;--tx:#e3efed;--mu:#8fa9a6;--bd:#27403d;--ac:#2dd4bf;--ok:#4ade80;--bad:#fbbf24}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:Manrope,system-ui,sans-serif;font-size:15px}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
+h1{font-size:22px;font-weight:800;margin:0;letter-spacing:-.02em}
+.sub{color:var(--mu);font-size:13px;margin:2px 0 0}
+nav{display:flex;gap:6px;margin:10px 0 14px;overflow-x:auto}
+nav button,.btn{font:inherit;font-weight:600;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:8px 14px;border-radius:8px;cursor:pointer;white-space:nowrap}
+nav button.on,.btn.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
+:root[data-theme="dark"] nav button.on,:root[data-theme="dark"] .btn.pri{color:#06201d}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+select,input[type=number],textarea{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 9px}
+label.f{font-size:12px;color:var(--mu);display:flex;flex-direction:column;gap:3px}
+.grid{display:grid;gap:12px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px}
+.kpi .v{font-size:28px;font-weight:800;letter-spacing:-.02em;margin:4px 0}
+.kpi .l{color:var(--mu);font-size:13px}
+.kpi .t{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mu)}
+.kpi .t input{width:92px;padding:4px 6px}
+.pill{font-size:12px;font-weight:700;padding:2px 8px;border-radius:99px;border:1px solid currentColor}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+.charts{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.wt{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-weight:700;font-size:14px}
+.x{border:0;background:none;color:var(--mu);font-size:18px;cursor:pointer}
+.cv{position:relative;height:240px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--bd);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mu);font-weight:600}
+textarea{width:100%;height:150px;font-family:ui-monospace,monospace;font-size:12px}
+.note{color:var(--mu);font-size:13px;margin:6px 0}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.maps{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin:10px 0}
+@media print{nav,.bar,.noprint{display:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap"><div id="root"></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const h=React.createElement,{useState,useEffect,useRef,useMemo}=React;
+const ls={get:(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const fmt=n=>{const a=Math.abs(n);return a>=1e6?(n/1e6).toFixed(2)+'M':a>=1e3?(n/1e3).toFixed(1)+'K':String(Math.round(n))};
+const DIMS={month:'Month',category:'Category',region:'Region'},METRICS={revenue:'Revenue',cost:'Cost',profit:'Profit',units:'Units'};
+const FIELDS=['date','category','region','revenue','cost','units'];
+const PAL=['#0f766e','#d97706','#4f46e5','#be185d','#65a30d','#0891b2','#7c3aed'];
+
+function sample(){let s=7;const r=()=>(s=(s*16807)%2147483647)/2147483647;const out=[];
+const C={Electronics:[30000,.72,250],Apparel:[15000,.5,40],Home:[12000,.6,60],Grocery:[20000,.8,8]};
+for(let m=1;m<=12;m++)for(const c in C)for(const g of['North','South','East','West']){
+const rev=Math.round(C[c][0]*(1+m*.04)*(.8+r()*.4));out.push({date:'2025-'+String(m).padStart(2,'0')+'-15',category:c,region:g,revenue:rev,cost:Math.round(rev*(C[c][1]+(r()-.5)*.06)),units:Math.round(rev/C[c][2])})}
+return out}
+const mv=(r,m)=>m==='profit'?r.revenue-r.cost:r[m];
+function agg(rows,dim,m){const o={};rows.forEach(r=>{const k=dim==='month'?r.date.slice(0,7):r[dim];o[k]=(o[k]||0)+mv(r,m)});
+let e=Object.entries(o);e=dim==='month'?e.sort((a,b)=>a[0]<b[0]?-1:1):e.sort((a,b)=>b[1]-a[1]);
+return{labels:e.map(x=>x[0]),values:e.map(x=>Math.round(x[1]))}}
+
+function parseCSV(t){const sp=l=>{const o=[];let c='',q=false;for(const ch of l){if(ch==='"')q=!q;else if(ch===','&&!q){o.push(c);c=''}else c+=ch}o.push(c);return o.map(x=>x.trim())};
+const L=t.trim().split(/\r?\n/).filter(Boolean),H=sp(L[0]);
+return{headers:H,raw:L.slice(1).map(l=>{const v=sp(l);return Object.fromEntries(H.map((k,i)=>[k,v[i]]))})}}
+function parseAny(name,t){if(name.toLowerCase().endsWith('.json')){const a=JSON.parse(t);const arr=Array.isArray(a)?a:[a];return{headers:Object.keys(arr[0]||{}),raw:arr}}return parseCSV(t)}
+const toDate=x=>{const d=new Date(x);return isNaN(d)?String(x).slice(0,10):d.toISOString().slice(0,10)};
+
+function ChartBox({type,labels,values,label}){
+const ref=useRef();
+useEffect(()=>{const cs=getComputedStyle(document.documentElement),tx=cs.getPropertyValue('--mu').trim()||'#888',bd=cs.getPropertyValue('--bd').trim()||'#ddd';
+const line=type==='line',dn=type==='doughnut';
+const ch=new Chart(ref.current,{type,data:{labels,datasets:[{label,data:values,backgroundColor:line?'rgba(15,118,110,.15)':PAL,borderColor:line?PAL[0]:PAL,fill:line,tension:.3,borderWidth:dn?0:2}]},
+options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:dn,labels:{color:tx}}},scales:dn?{}:{x:{ticks:{color:tx},grid:{display:false}},y:{ticks:{color:tx,callback:v=>fmt(v)},grid:{color:bd}}}}});
+return()=>ch.destroy()},[type,labels.join(),values.join()]);
+return h('div',{className:'cv'},h('canvas',{ref}))}
+
+function App(){
+const[tab,setTab]=useState('dash');
+const[rows,setRows]=useState(()=>ls.get('bi_rows',null)||sample());
+const[reg,setReg]=useState('All'),[cat,setCat]=useState('All');
+const[widgets,setWidgets]=useState(()=>ls.get('bi_widgets',null)||[
+{id:1,type:'line',dim:'month',metric:'revenue'},{id:2,type:'bar',dim:'category',metric:'profit'},{id:3,type:'doughnut',dim:'region',metric:'revenue'}]);
+const[targets,setTargets]=useState(()=>ls.get('bi_targets',{revenue:4000000,profit:1200000,margin:30,growth:3}));
+const[draft,setDraft]=useState({type:'bar',dim:'region',metric:'units'});
+const[imp,setImp]=useState(null),[msg,setMsg]=useState('');
+useEffect(()=>ls.set('bi_widgets',widgets),[widgets]);
+useEffect(()=>ls.set('bi_targets',targets),[targets]);
+const regions=useMemo(()=>['All',...new Set(rows.map(r=>r.region))],[rows]);
+const cats=useMemo(()=>['All',...new Set(rows.map(r=>r.category))],[rows]);
+const f=useMemo(()=>rows.filter(r=>(reg==='All'||r.region===reg)&&(cat==='All'||r.category===cat)),[rows,reg,cat]);
+const sum=m=>f.reduce((a,r)=>a+mv(r,m),0);
+const rev=sum('revenue'),pro=sum('profit'),mar=rev?pro/rev*100:0;
+const mo=agg(f,'month','revenue'),n=mo.values.length;
+const gr=n>1&&mo.values[n-2]?(mo.values[n-1]-mo.values[n-2])/mo.values[n-2]*100:0;
+const kpis=[{k:'revenue',l:'Revenue',v:rev,s:fmt(rev)},{k:'profit',l:'Profit',v:pro,s:fmt(pro)},{k:'margin',l:'Profit margin',v:mar,s:mar.toFixed(1)+'%'},{k:'growth',l:'Latest month growth',v:gr,s:(gr>=0?'+':'')+gr.toFixed(1)+'%'}];
+
+function onFile(e){const file=e.target.files[0];if(!file)return;const rd=new FileReader();
+rd.onload=()=>{try{const p=parseAny(file.name,rd.result);if(!p.raw.length)throw new Error('empty');
+const map={};FIELDS.forEach(k=>{map[k]=p.headers.find(x=>x.toLowerCase().includes(k))||''});setImp({...p,map});setMsg(p.raw.length+' rows read from '+file.name+'. Check the column mapping, then import.')}catch(err){setMsg('Could not read that file. Use a CSV or a JSON array of objects.')}};rd.readAsText(file)}
+function applyImport(){const m=imp.map;if(!m.date||!m.revenue){setMsg('Map at least the date and revenue columns.');return}
+const out=imp.raw.map(r=>({date:toDate(r[m.date]),category:(m.category&&r[m.category])||'Other',region:(m.region&&r[m.region])||'All regions',revenue:+r[m.revenue]||0,cost:m.cost?+r[m.cost]||0:0,units:m.units?+r[m.units]||0:0}));
+setRows(out);setImp(null);setReg('All');setCat('All');setMsg(out.length+' rows imported. Dashboards now use your data.')}
+
+const sel=(val,opts,on)=>h('select',{value:val,onChange:e=>on(e.target.value)},opts.map(o=>Array.isArray(o)?h('option',{key:o[0],value:o[0]},o[1]):h('option',{key:o,value:o},o)));
+const entries=o=>Object.entries(o);
+
+const filters=h('div',{className:'bar'},
+h('label',{className:'f'},'Region',sel(reg,regions,setReg)),
+h('label',{className:'f'},'Category',sel(cat,cats,setCat)));
+
+const dash=h('div',null,filters,
+h('div',{className:'grid kpis'},kpis.map(x=>{const t=targets[x.k],ok=x.v>=t;return h('div',{key:x.k,className:'card kpi'},
+h('div',{className:'l'},x.l),h('div',{className:'v'},x.s),
+h('div',{className:'t'},'Target',h('input',{type:'number',value:t,onChange:e=>setTargets({...targets,[x.k]:+e.target.value})}),h('span',{className:'pill '+(ok?'ok':'bad')},ok?'On track':'Below'))) })),
+h('div',{className:'grid charts'},widgets.map(w=>{const d=agg(f,w.dim,w.metric);return h('div',{key:w.id,className:'card'},
+h('div',{className:'wt'},METRICS[w.metric]+' by '+DIMS[w.dim].toLowerCase(),h('button',{className:'x','aria-label':'Remove chart',onClick:()=>setWidgets(widgets.filter(z=>z.id!==w.id))},'×')),
+h(ChartBox,{type:w.type,labels:d.labels,values:d.values,label:METRICS[w.metric]}))})),
+h('div',{className:'card noprint',style:{marginTop:12}},h('div',{className:'wt'},'Add a chart'),
+h('div',{className:'row'},
+h('label',{className:'f'},'Metric',sel(draft.metric,entries(METRICS),v=>setDraft({...draft,metric:v}))),
+h('label',{className:'f'},'Group by',sel(draft.dim,entries(DIMS),v=>setDraft({...draft,dim:v}))),
+h('label',{className:'f'},'Chart type',sel(draft.type,[['bar','Bar'],['line','Line'],['doughnut','Doughnut']],v=>setDraft({...draft,type:v}))),
+h('button',{className:'btn pri',onClick:()=>setWidgets([...widgets,{...draft,id:Date.now()}])},'Add chart')),
+h('p',{className:'note'},'Your chart layout is remembered in this browser.')));
+
+const data=h('div',null,
+h('div',{className:'card'},h('div',{className:'wt'},'Import data'),
+h('p',{className:'note'},'Upload a CSV or JSON file with date, category, region, revenue, cost and units columns. Rows now loaded: '+rows.length+'.'),
+h('div',{className:'row'},h('input',{type:'file',accept:'.csv,.json',onChange:onFile}),h('button',{className:'btn',onClick:()=>{setRows(sample());setMsg('Sample data loaded.')}},'Load sample data')),
+msg&&h('p',{className:'note'},msg),
+imp&&h('div',null,h('div',{className:'grid maps'},FIELDS.map(k=>h('label',{key:k,className:'f'},k+(k==='date'||k==='revenue'?' (required)':''),sel(imp.map[k],[['','— none —'],...imp.headers.map(x=>[x,x])],v=>setImp({...imp,map:{...imp.map,[k]:v}}))))),
+h('button',{className:'btn pri',onClick:applyImport},'Import '+imp.raw.length+' rows'))),
+h('div',{className:'card',style:{marginTop:12}},h('div',{className:'wt'},'Preview (first 8 rows)'),
+h('div',{className:'tw'},h('table',null,h('thead',null,h('tr',null,FIELDS.map(k=>h('th',{key:k},k)))),
+h('tbody',null,rows.slice(0,8).map((r,i)=>h('tr',{key:i},FIELDS.map(k=>h('td',{key:k},r[k])))))))));
+
+const csv='month,revenue,cost,profit,margin_pct\n'+mo.labels.map((l,i)=>{const sub=f.filter(r=>r.date.slice(0,7)===l),rv=sub.reduce((a,r)=>a+r.revenue,0),c=sub.reduce((a,r)=>a+r.cost,0);return[l,rv,c,rv-c,rv?((rv-c)/rv*100).toFixed(1):0].join(',')}).join('\n');
+const taRef=useRef();
+function copy(t){try{navigator.clipboard.writeText(t).then(()=>setMsg('Copied to clipboard.'),()=>pick())}catch(e){pick()}function pick(){taRef.current.select();setMsg('Text selected. Use your device’s Copy option.')}}
+const lines=csv.split('\n').slice(1).map(x=>x.split(','));
+const rep=h('div',null,filters,
+h('div',{className:'card'},h('div',{className:'wt'},'Monthly report'),
+h('div',{className:'tw'},h('table',null,h('thead',null,h('tr',null,['Month','Revenue','Cost','Profit','Margin %'].map(x=>h('th',{key:x},x)))),
+h('tbody',null,lines.map(l=>h('tr',{key:l[0]},l.map((c,i)=>h('td',{key:i},i===0||i===4?c:fmt(+c))))))))),
+h('div',{className:'card noprint',style:{marginTop:12}},h('div',{className:'wt'},'Export'),
+h('textarea',{ref:taRef,readOnly:true,value:csv}),
+h('div',{className:'row',style:{marginTop:8}},
+h('button',{className:'btn pri',onClick:()=>copy(csv)},'Copy report as CSV'),
+h('button',{className:'btn',onClick:()=>copy(JSON.stringify(f,null,1))},'Copy data as JSON'),
+h('button',{className:'btn',onClick:()=>{try{window.print()}catch(e){setMsg('Printing is blocked here.')}}},'Print or save as PDF')),
+msg&&h('p',{className:'note'},msg)));
+
+return h('div',null,
+h('header',null,h('div',null,h('h1',null,'Insightboard'),h('p',{className:'sub'},'Sales analytics · '+f.length+' of '+rows.length+' records')),
+h('button',{className:'btn noprint',onClick:()=>{const r=document.documentElement;r.setAttribute('data-theme',r.getAttribute('data-theme')==='dark'?'light':'dark')}},'Switch theme')),
+h('nav',null,[['dash','Dashboard'],['data','Data'],['rep','Reports']].map(([k,l])=>h('button',{key:k,className:tab===k?'on':'',onClick:()=>{setTab(k);setMsg('')}},l))),
+tab==='dash'?dash:tab==='data'?data:rep)}
+ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+</script>
+</body>
+</html>
